@@ -2,7 +2,7 @@
 
 ## 文件说明
 
-- `api/chat.js` - 聊天接口，对接月之暗面 API
+- `api/chat.js` - 聊天接口，对接小米 MiMo
 - `vercel.json` - Vercel 部署配置
 - `package.json` - 项目信息
 
