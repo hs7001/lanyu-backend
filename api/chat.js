@@ -1,4 +1,4 @@
-// 蓝屿后端 API - 对接月之暗面（短回复版）
+// 蓝屿后端 API - 对接小米 MIMO（短回复版）
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -15,6 +15,7 @@ export default async function handler(req, res) {
   try {
     const { message, character, history } = req.body;
 
+    // 获取中国时间（UTC+8）
     const now = new Date();
     const chinaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
     const hours = chinaTime.getUTCHours();
@@ -44,7 +45,7 @@ export default async function handler(req, res) {
 就像微信聊天一样，一句话发过去就等对方回。
 
 【错误示范（绝对禁止）】
-❌ "被领导骂了确实让人不舒服，尤其是当它发生在公共场合时，影响自我价值感。你觉得自己被骂的原因是什么？"
+❌ "被领导骂了确实让人不舒服，尤其是当它发生在公共场合时。"
 （太长、在分析、在说教）
 
 【正确示范】
@@ -52,7 +53,6 @@ export default async function handler(req, res) {
 ✅ "...过来。"
 ✅ "不想说就先不说，我在这。"
 ✅ "他凭什么骂你。"
-✅ "行，我知道了。晚上想吃什么，我给你做。"
 
 【核心原则】
 - 用户不开心 → 先关心人，不要分析原因
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
 就像微信聊天一样，一句话发过去就等对方回。
 
 【错误示范（绝对禁止）】
-❌ "被领导骂了确实让人不舒服，尤其是当它发生在公共场合时。你觉得自己被骂的原因是什么？"
+❌ "被领导骂了确实让人不舒服，尤其是当它发生在公共场合时。"
 （太长、在分析、在说教）
 
 【正确示范】
@@ -114,17 +114,20 @@ export default async function handler(req, res) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-    const response = await fetch('https://api.moonshot.cn/v1/chat/completions', {
+    // ====== 调用小米 MIMO API（兼容 OpenAI 格式）======
+    const response = await fetch('https://api.xiaomimimo.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.MOONSHOT_API_KEY}`
+        'api-key': process.env.MIMO_API_KEY
       },
       body: JSON.stringify({
-        model: 'moonshot-v1-8k',
+        model: 'mimo-v2.5-pro',
         messages: messages,
+        max_completion_tokens: 40,
         temperature: 0.9,
-        max_tokens: 40
+        top_p: 0.95,
+        stream: false
       }),
       signal: controller.signal
     });
@@ -140,4 +143,12 @@ export default async function handler(req, res) {
     let reply = data.choices[0].message.content;
     reply = reply.replace(/^(请以.*回复：)/, '').trim();
 
-    res.status(200).
+    res.status(200).json({ success: true, reply: reply });
+
+  } catch (error) {
+    console.error('Error:', error);
+    let errorMsg = '服务器出错，请稍后重试';
+    if (error.name === 'AbortError') errorMsg = '请求超时，请重试';
+    res.status(500).json({ success: false, error: errorMsg });
+  }
+}
